@@ -478,6 +478,9 @@
       "mode": {
         "name": "Modalità"
       },
+      "sterilization_remaining": {
+        "name": "Tempo di sterilizzazione rimanente"
+      },
       "target_temp": {
         "name": "Temperatura impostata"
       },
@@ -766,6 +769,9 @@
       },
       "heating": {
         "name": "Riscaldamento"
+      },
+      "anode_low": {
+        "name": "Livello anodo basso"
       },
       "quick_cool": {
         "name": "Super Cool (lettura)"

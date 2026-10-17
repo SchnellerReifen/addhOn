@@ -451,7 +451,8 @@ class Tier2TableTest(unittest.TestCase):
             _sensor_keys("WH"),
             ["water_temp", "temp_inlet", "temp_outlet", "power", "water_volume",
              "heating_remaining", "program_phase", "errors", "program_name",
-             "remaining_hot_water", "total_work_time", "selected_temperature", "mode"],
+             "remaining_hot_water", "total_work_time", "selected_temperature", "mode",
+             "sterilization_remaining"],
         )
 
     def test_vacuum_full_keys(self) -> None:

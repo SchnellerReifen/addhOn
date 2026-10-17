@@ -1221,6 +1221,10 @@ _WATER_HEATER: tuple[HonSensorEntityDescription, ...] = (
     # raw `machMode` code, which is what the app and `hon` publish there.
     _g_temp("selected_temperature", "tempSel"),
     _g_text("mode", "machMode", icon="mdi:water-boiler"),
+    # The dd-sterilization countdown. Its siblings (waterFlow, useWaterLog*,
+    # remainingTimeDDSterilization's reminder/result) read 0 or carry no stated unit on
+    # the ES100V, so they stay out rather than publish a placeholder.
+    _g_minutes("sterilization_remaining", "remainingTimeDDSterilization"),
 )
 
 # Heat-pump water heater (HW, the app's HPWH; issue #113). Read-only: the write side

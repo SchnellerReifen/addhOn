@@ -561,6 +561,14 @@ _WATER_HEATER_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
         attr_key="energySavingStatus",
         device_class=BinarySensorDeviceClass.RUNNING,
     ),
+    # The anode's own low-level warning. The richer anode flags (level detection,
+    # communication) read 1/0 without a stated meaning on the ES100V and stay out.
+    HonBinarySensorEntityDescription(
+        key="anode_low",
+        icon="mdi:battery-alert",
+        attr_key="anodeLowLevelIndicate",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+    ),
 )
 
 # Heat-pump water heater (HW, #113). The two heating sources count as running on
