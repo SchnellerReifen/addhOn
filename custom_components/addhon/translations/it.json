@@ -469,6 +469,15 @@
           "holding": "Mantenimento"
         }
       },
+      "remaining_hot_water": {
+        "name": "Acqua calda rimanente"
+      },
+      "selected_temperature": {
+        "name": "Temperatura impostata"
+      },
+      "mode": {
+        "name": "Modalità"
+      },
       "target_temp": {
         "name": "Temperatura impostata"
       },
@@ -748,6 +757,15 @@
       },
       "energy_saving": {
         "name": "Risparmio Energetico"
+      },
+      "anode_maintenance": {
+        "name": "Manutenzione anodo"
+      },
+      "tank_maintenance": {
+        "name": "Manutenzione serbatoio"
+      },
+      "heating": {
+        "name": "Riscaldamento"
       },
       "quick_cool": {
         "name": "Super Cool (lettura)"

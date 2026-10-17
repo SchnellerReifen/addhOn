@@ -1194,6 +1194,34 @@ _WATER_HEATER: tuple[HonSensorEntityDescription, ...] = (
     _g_minutes("heating_remaining", "remainingTimeMMHeating"),
     _g_enum("program_phase", "prPhase", WH_PHASE_MAP,
             translation_key="heater_phase", icon="mdi:water-boiler"),
+    # Parity with the older `hon` integration on the same WH model: the readings it
+    # exposes that the app-derived rows above did not carry. All read-only and
+    # capability-gated, so a WH that does not report them shows nothing.
+    _g_text("errors", "errors", icon="mdi:alert-circle-outline"),
+    _g_text("program_name", "programName", icon="mdi:format-list-bulleted"),
+    HonSensorEntityDescription(
+        key="remaining_hot_water",
+        attr_key="remainingVolumeHotWater",
+        icon="mdi:water",
+        native_unit_of_measurement=UnitOfVolume.LITERS,
+        state_class=SensorStateClass.MEASUREMENT,
+        gated=True,
+    ),
+    HonSensorEntityDescription(
+        key="total_work_time",
+        attr_key="totalWorkTime",
+        icon="mdi:timer-outline",
+        # The app counts this in hours; the stub vocabulary has no HOURS constant, so
+        # the unit is the plain HA duration string.
+        native_unit_of_measurement="h",
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        gated=True,
+    ),
+    # The setpoint as its own reading (the water_heater entity carries it too) and the
+    # raw `machMode` code, which is what the app and `hon` publish there.
+    _g_temp("selected_temperature", "tempSel"),
+    _g_text("mode", "machMode", icon="mdi:water-boiler"),
 )
 
 # Heat-pump water heater (HW, the app's HPWH; issue #113). Read-only: the write side

@@ -591,6 +591,10 @@ class AirPurifierBinaryTableTest(unittest.TestCase):
                 ("HW", "sterilization_running"),
                 # Unknown to the app: on at anything but "0", like the sources.
                 ("HW", "defrost"),
+                # The plain WH's heating flag: the app's `heatingStatus` is a status
+                # code (2 = active on the ES100V dump), so the shared == "1" would
+                # read it off; on at anything but "0".
+                ("WH", "heating"),
                 # Washer maintenance: `drumCleaning` / `filterCleaning` are the
                 # statistics counter `{tot, count, remaining, percentage}`, not a flag.
                 ("WM", "drum_clean_needed"),

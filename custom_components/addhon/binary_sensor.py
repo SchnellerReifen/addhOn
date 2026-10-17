@@ -509,6 +509,18 @@ _AC_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
 )
 
 # Water heater (WH).
+def _wh_heating(raw) -> bool | None:
+    """WH heating: on for any `heatingStatus` but the "0" resting code.
+
+    The app publishes `heatingStatus` as a status code (2 = heating finished on the
+    ES100V dump), so the default `== "1"` -- which is what the older `hon` integration
+    compares -- reads it off; anything but "0" means the element is active.
+    """
+    if raw is None:
+        return None
+    return str(raw).strip() != "0"
+
+
 _WATER_HEATER_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
     HonBinarySensorEntityDescription(
         key="light",
@@ -520,6 +532,33 @@ _WATER_HEATER_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
         key="child_lock",
         icon="mdi:lock-alert",
         attr_key="lockStatus",
+    ),
+    # Parity with the older `hon` integration on the same WH model. Capability-gated
+    # like every binary, so a model that does not report them shows nothing.
+    HonBinarySensorEntityDescription(
+        key="heating",
+        icon="mdi:heating-coil",
+        attr_key="heatingStatus",
+        device_class=BinarySensorDeviceClass.HEAT,
+        value_fn=_wh_heating,
+    ),
+    HonBinarySensorEntityDescription(
+        key="anode_maintenance",
+        icon="mdi:alert-outline",
+        attr_key="anodeMaintenanceStatus",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+    ),
+    HonBinarySensorEntityDescription(
+        key="tank_maintenance",
+        icon="mdi:alert-outline",
+        attr_key="tankMaintenanceStatus",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+    ),
+    HonBinarySensorEntityDescription(
+        key="energy_saving",
+        icon="mdi:leaf",
+        attr_key="energySavingStatus",
+        device_class=BinarySensorDeviceClass.RUNNING,
     ),
 )
 

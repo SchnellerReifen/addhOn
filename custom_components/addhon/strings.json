@@ -469,6 +469,15 @@
           "holding": "Holding"
         }
       },
+      "remaining_hot_water": {
+        "name": "Remaining hot water"
+      },
+      "selected_temperature": {
+        "name": "Selected temperature"
+      },
+      "mode": {
+        "name": "Mode"
+      },
       "target_temp": {
         "name": "Target temperature"
       },
@@ -748,6 +757,15 @@
       },
       "energy_saving": {
         "name": "Energy saving"
+      },
+      "anode_maintenance": {
+        "name": "Anode maintenance"
+      },
+      "tank_maintenance": {
+        "name": "Tank maintenance"
+      },
+      "heating": {
+        "name": "Heating"
       },
       "quick_cool": {
         "name": "Super cool (reading)"

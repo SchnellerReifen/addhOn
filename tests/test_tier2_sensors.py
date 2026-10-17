@@ -450,7 +450,8 @@ class Tier2TableTest(unittest.TestCase):
         self.assertEqual(
             _sensor_keys("WH"),
             ["water_temp", "temp_inlet", "temp_outlet", "power", "water_volume",
-             "heating_remaining", "program_phase"],
+             "heating_remaining", "program_phase", "errors", "program_name",
+             "remaining_hot_water", "total_work_time", "selected_temperature", "mode"],
         )
 
     def test_vacuum_full_keys(self) -> None:
@@ -1240,6 +1241,43 @@ class Tier2BinaryGatingTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({e._attr_unique_id for e in added}, {"x-1_child_lock", "x-1_connectivity"})
         lock = next(e for e in added if e._attr_unique_id == "x-1_child_lock")
         self.assertTrue(lock.is_on)
+
+    async def test_water_heater_gains_hon_parity_binaries(self) -> None:
+        # The older `hon` integration's WH binaries, ported read-only. Capability-gated
+        # like every binary, so they appear only where the WH reports them.
+        added = await _build_binary(
+            "WH",
+            {"heatingStatus": "2", "anodeMaintenanceStatus": "0",
+             "tankMaintenanceStatus": "1", "energySavingStatus": "1"},
+        )
+        by_id = {e._attr_unique_id: e for e in added}
+        self.assertEqual(
+            set(by_id),
+            {"x-1_heating", "x-1_anode_maintenance", "x-1_tank_maintenance",
+             "x-1_energy_saving", "x-1_connectivity"},
+        )
+        self.assertTrue(by_id["x-1_heating"].is_on)  # 2 = active, not the == "1" hon read
+        self.assertFalse(by_id["x-1_anode_maintenance"].is_on)
+        self.assertTrue(by_id["x-1_tank_maintenance"].is_on)
+        self.assertTrue(by_id["x-1_energy_saving"].is_on)
+
+    async def test_water_heater_gains_hon_parity_sensors(self) -> None:
+        added = await _build_sensors(
+            "WH",
+            {"errors": "00", "programName": "Eco", "remainingVolumeHotWater": "5",
+             "totalWorkTime": "3", "tempSel": "45", "machMode": "1"},
+        )
+        ids = {e._attr_unique_id for e in added}
+        self.assertTrue(
+            {"x-1_errors", "x-1_program_name", "x-1_remaining_hot_water",
+             "x-1_total_work_time", "x-1_selected_temperature", "x-1_mode"} <= ids,
+        )
+        # A WH that reports none of them creates none (capability-gated).
+        bare = {e._attr_unique_id for e in await _build_sensors("WH", {"temp": "40"})}
+        self.assertFalse(
+            bare & {"x-1_errors", "x-1_remaining_hot_water", "x-1_mode",
+                    "x-1_selected_temperature", "x-1_total_work_time"},
+        )
 
     async def test_ac_binary_gating(self) -> None:
         # AC gains a per-type binary set (filter change + formaldehyde cleaning),
