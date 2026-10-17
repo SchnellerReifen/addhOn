@@ -1211,9 +1211,8 @@ _WATER_HEATER: tuple[HonSensorEntityDescription, ...] = (
         key="total_work_time",
         attr_key="totalWorkTime",
         icon="mdi:timer-outline",
-        # The app counts this in hours; the stub vocabulary has no HOURS constant, so
-        # the unit is the plain HA duration string.
-        native_unit_of_measurement="h",
+        # Minutes, as the older `hon` integration reads the same attribute on this model.
+        native_unit_of_measurement=UnitOfTime.MINUTES,
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.TOTAL_INCREASING,
         gated=True,

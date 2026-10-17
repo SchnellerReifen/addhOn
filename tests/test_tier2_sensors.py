@@ -1247,7 +1247,7 @@ class Tier2BinaryGatingTest(unittest.IsolatedAsyncioTestCase):
         # like every binary, so they appear only where the WH reports them.
         added = await _build_binary(
             "WH",
-            {"heatingStatus": "2", "anodeMaintenanceStatus": "0",
+            {"power": "1500", "anodeMaintenanceStatus": "0",
              "tankMaintenanceStatus": "1", "energySavingStatus": "1"},
         )
         by_id = {e._attr_unique_id: e for e in added}
@@ -1256,10 +1256,16 @@ class Tier2BinaryGatingTest(unittest.IsolatedAsyncioTestCase):
             {"x-1_heating", "x-1_anode_maintenance", "x-1_tank_maintenance",
              "x-1_energy_saving", "x-1_connectivity"},
         )
-        self.assertTrue(by_id["x-1_heating"].is_on)  # 2 = active, not the == "1" hon read
+        self.assertTrue(by_id["x-1_heating"].is_on)  # power > 0 = drawing current
         self.assertFalse(by_id["x-1_anode_maintenance"].is_on)
         self.assertTrue(by_id["x-1_tank_maintenance"].is_on)
         self.assertTrue(by_id["x-1_energy_saving"].is_on)
+
+        # Idle: the element draws nothing, so `heating` is off (heatingStatus alone
+        # cannot tell -- it reads "2" both ways on the real ES100V).
+        idle = await _build_binary("WH", {"power": "0"})
+        heating = next(e for e in idle if e._attr_unique_id == "x-1_heating")
+        self.assertFalse(heating.is_on)
 
     async def test_water_heater_gains_hon_parity_sensors(self) -> None:
         added = await _build_sensors(

@@ -510,15 +510,16 @@ _AC_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
 
 # Water heater (WH).
 def _wh_heating(raw) -> bool | None:
-    """WH heating: on for any `heatingStatus` but the "0" resting code.
+    """WH heating: on while the element draws power.
 
-    The app publishes `heatingStatus` as a status code (2 = heating finished on the
-    ES100V dump), so the default `== "1"` -- which is what the older `hon` integration
-    compares -- reads it off; anything but "0" means the element is active.
+    `heatingStatus` is not "is heating now": the ES100V reports 2 both while the
+    element runs and while it sits idle (live, `Heating` read "hot" with `power = 0 W`),
+    so it cannot drive this entity. `power` can -- 1500 W while heating, 0 W otherwise.
     """
-    if raw is None:
+    try:
+        return float(raw) > 0
+    except (TypeError, ValueError):
         return None
-    return str(raw).strip() != "0"
 
 
 _WATER_HEATER_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
@@ -538,7 +539,7 @@ _WATER_HEATER_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
     HonBinarySensorEntityDescription(
         key="heating",
         icon="mdi:heating-coil",
-        attr_key="heatingStatus",
+        attr_key="power",
         device_class=BinarySensorDeviceClass.HEAT,
         value_fn=_wh_heating,
     ),
