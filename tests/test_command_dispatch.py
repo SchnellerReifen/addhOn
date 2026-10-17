@@ -303,6 +303,9 @@ def test_dispatcher_has_no_production_entity_caller() -> None:
         # The heat-pump water heater's counterpart to hood.py: every HW write is built
         # by one of hpwh.py's `*_patch` functions (#113).
         Path("hpwh.py"),
+        # The plain electric water heater's counterpart: every WH write is built by one
+        # of wh.py's `*_patch` functions (startProgram/stopProgram/settings).
+        Path("wh.py"),
         # The water heater platform dispatches the hpwh.py patches it builds (#113).
         Path("water_heater.py"),
         # Its scheduling writes (block 5): the vacation dates, the clear button and

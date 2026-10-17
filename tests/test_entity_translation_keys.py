@@ -310,7 +310,10 @@ def _collect_code_keys() -> dict[str, set[str]]:
         fan.HonAirPurifierFan._attr_translation_key,
         fan.HonHoodFan._attr_translation_key,
     }
-    used["water_heater"] = {water_heater.HonHeatPumpWaterHeater._attr_translation_key}
+    used["water_heater"] = {
+        water_heater.HonHeatPumpWaterHeater._attr_translation_key,
+        water_heater.HonWaterHeater._attr_translation_key,
+    }
     # The heat-pump water heater's vacation dates: fixed keys from one closed tuple.
     used["date"] = {key for key, _shadow_key, _icon in date._VACATION_DATES}
     # Its sterilization time, which replaced the block-3 sensor: one fixed-key class.

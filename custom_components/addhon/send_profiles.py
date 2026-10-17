@@ -67,7 +67,27 @@ HPWH = SendProfile(
     verify_delivery=True,
 )
 
-_BY_TYPE: Mapping[str, SendProfile] = MappingProxyType({"HW": HPWH})
+# The plain electric water heater (type WH). Its control model is the app's
+# start-program one, not the heat-pump settings one: a mode change is a sparse
+# `startProgram {machMode}` on the selected programme, power off a sparse
+# `stopProgram {onOffStatus:"0"}`, and only the setpoint goes through `settings`
+# (wire `setParameters`, as on the heat-pump). A live WH dump
+# (ES100V-FE3W(EU), series fe3) declares `settings.tempSel` 30-85 step 1 and the
+# four `startProgram` programmes normal/eco/max/bps with fixed
+# `machMode` 0/1/2/3; the app's accepted history carries `{machMode}` together with
+# the startProgram's own `remoteActionable`/`remoteVisible` ancillaries and no
+# energy label, so this profile takes each command's own ancillaries.
+WH = SendProfile(
+    name="wh",
+    backfill_mandatory=False,
+    include_rule_changes=False,
+    wire_commands=MappingProxyType({"settings": "setParameters"}),
+    energy_label=False,
+    ancillary_source=None,
+    verify_delivery=True,
+)
+
+_BY_TYPE: Mapping[str, SendProfile] = MappingProxyType({"HW": HPWH, "WH": WH})
 
 
 def profile_for(appliance_type: str | None) -> SendProfile:

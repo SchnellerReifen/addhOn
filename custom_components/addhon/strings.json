@@ -1289,6 +1289,16 @@
           "electric": "Electric",
           "off": "Off"
         }
+      },
+      "water_heater": {
+        "name": "Water heater",
+        "state": {
+          "normal": "Normal",
+          "eco": "Eco",
+          "max": "Maximum",
+          "bps": "BPS",
+          "off": "Off"
+        }
       }
     },
     "date": {

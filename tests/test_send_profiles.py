@@ -17,6 +17,7 @@ from custom_components.addhon.command_dispatch import (  # noqa: E402
 from custom_components.addhon.send_profiles import (  # noqa: E402
     HPWH,
     LEGACY,
+    WH,
     profile_for,
 )
 
@@ -60,10 +61,73 @@ def _settings(appliance, ancillary: dict | None = None) -> HonCommand:
     return command
 
 
-def test_every_type_but_hw_keeps_the_legacy_profile() -> None:
-    for app_type in ("AC", "WM", "WD", "TD", "DW", "REF", "HO", "AP", "WH", None, ""):
+def test_every_type_but_hw_and_wh_keeps_the_legacy_profile() -> None:
+    for app_type in ("AC", "WM", "WD", "TD", "DW", "REF", "HO", "AP", None, ""):
         assert profile_for(app_type) is LEGACY, app_type
     assert profile_for("HW") is HPWH
+    assert profile_for("WH") is WH
+
+
+def test_the_wh_profile_sends_the_requested_keys_only() -> None:
+    appliance = _Appliance()
+    command = _settings(appliance)
+    prepared = CommandDispatcher()._prepare(
+        command, CommandPatch("settings", {"tempSel": "45"}, action="t"), WH
+    )
+    assert dict(prepared.payload) == {"tempSel": "45"}
+
+
+def test_a_wh_write_goes_out_as_setparameters_without_energy_label() -> None:
+    appliance = _Appliance()
+    appliance.appliance_type = "WH"
+    command = _settings(appliance)
+    ok, calls = _dispatch(
+        appliance, command, CommandPatch("settings", {"tempSel": "45"}, action="t")
+    )
+    assert ok is True
+    assert calls == [
+        ("settings", {"tempSel": "45"}, "setParameters", "setParameters", False)
+    ]
+
+
+def test_a_wh_mode_change_keeps_the_commands_own_ancillaries() -> None:
+    # A WH startProgram carries its own remoteActionable/remoteVisible; the profile
+    # takes neither the heat-pump's settings source nor a wire rename for it.
+    from custom_components.addhon import wh
+
+    appliance = _Appliance()
+    appliance.appliance_type = "WH"
+    categories: dict = {}
+    for name, mach_mode in (("normal", "0"), ("eco", "1"), ("max", "2"), ("bps", "3")):
+        categories[name] = HonCommand(
+            "startProgram",
+            {
+                "parameters": {
+                    "machMode": {"typology": "fixed", "fixedValue": mach_mode,
+                                 "category": "command", "mandatory": 0},
+                },
+                "ancillaryParameters": {"remoteActionable": _fixed("1")},
+            },
+            appliance,
+            categories=categories,
+            category_name=f"PROGRAMS.WH.{name.upper()}",
+        )
+    appliance.commands["startProgram"] = categories["normal"]
+    api = _RecordingApi()
+    for command in categories.values():
+        command._api = api
+    appliance.sync_payload_to_params = lambda payload: None
+
+    ok = asyncio.run(
+        CommandDispatcher().dispatch(appliance, wh.mode_patch("eco", "1"))
+    )
+
+    assert ok is True
+    assert len(api.calls) == 1
+    name, payload, program_name, wire, label = api.calls[0]
+    assert (name, payload, program_name) == ("startProgram", {"machMode": "1"}, "")
+    assert (wire, label) == (None, False)
+    assert api.ancillaries == [{"remoteActionable": "1"}]
 
 
 def test_legacy_backfills_the_mandatory_keys() -> None:

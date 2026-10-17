@@ -36,6 +36,7 @@ from .base_entity import HonBaseEntity, coordinator_data_map
 from .command_dispatch import async_dispatch_patch
 from .const import (
     APPLIANCE_HW,
+    APPLIANCE_WH,
     CONF_ENABLE_EXPERIMENTAL,
     DOMAIN,
     SERVICE_SET_ECO_SCHEDULE,
@@ -68,6 +69,17 @@ from .hpwh import (
     temperature_block,
     temperature_patch,
 )
+from .wh import (
+    code as wh_code,
+    mode_categories as wh_mode_categories,
+    mode_patch as wh_mode_patch,
+    operation_for as wh_operation_for,
+    power_off_patch as wh_power_off_patch,
+    power_on_patch as wh_power_on_patch,
+    temperature_patch as wh_temperature_patch,
+    temperature_range as wh_temperature_range,
+    validate_setpoint as wh_validate_setpoint,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,6 +105,17 @@ _ATTR_OPERATION_MODE = "operation_mode"
 def _settings(appliance):
     commands = getattr(appliance, "commands", None) or {}
     return commands.get(HPWH_SETTINGS_COMMAND)
+
+
+def _wh_controllable(appliance) -> bool:
+    """Whether a WH appliance exposes anything this platform can write.
+
+    Either a setpoint (`settings.tempSel`) or a programme to start: the schema of a
+    WH that has neither is not one the app's start-program model applies to.
+    """
+    settings = _settings(appliance)
+    parameters = getattr(settings, "parameters", {}) if settings else {}
+    return "tempSel" in parameters or bool(wh_mode_categories(appliance))
 
 
 def _has_boost(appliance) -> bool:
@@ -286,16 +309,19 @@ async def async_setup_entry(
     for appliance_id, data in coordinator_data_map(coordinator).items():
         # The same guard as `_BoostAutoOff.handle_update`: one malformed entry must not
         # abort the setup and cost every water heater of the entry.
-        if not isinstance(data, Mapping) or data.get("type") != APPLIANCE_HW:
+        if not isinstance(data, Mapping):
             continue
         appliance = data.get("appliance")
-        if not controls_supported(appliance_series(appliance)):
-            continue
-        settings = _settings(appliance)
-        parameters = getattr(settings, "parameters", {}) if settings else {}
-        if "onOffStatus" not in parameters or "tempSel" not in parameters:
-            continue
-        entities.append(HonHeatPumpWaterHeater(coordinator, appliance_id))
+        if data.get("type") == APPLIANCE_HW:
+            if not controls_supported(appliance_series(appliance)):
+                continue
+            settings = _settings(appliance)
+            parameters = getattr(settings, "parameters", {}) if settings else {}
+            if "onOffStatus" not in parameters or "tempSel" not in parameters:
+                continue
+            entities.append(HonHeatPumpWaterHeater(coordinator, appliance_id))
+        elif data.get("type") == APPLIANCE_WH and _wh_controllable(appliance):
+            entities.append(HonWaterHeater(coordinator, appliance_id))
     async_add_entities(entities)
     _register_eco_schedule_service()
 
@@ -474,6 +500,143 @@ class HonHeatPumpWaterHeater(HonBaseEntity, WaterHeaterEntity):
                             "step": str(number), "steps": str(len(steps))
                         },
                     )
+
+    def _fahrenheit(self) -> bool:
+        return self.hass.config.units.temperature_unit == UnitOfTemperature.FAHRENHEIT
+
+    async def _send(self, patch) -> None:
+        await async_dispatch_patch(self.hass, self._hon_client, self._appliance, patch)
+        await self._async_request_command_refresh()
+
+
+class HonWaterHeater(HonBaseEntity, WaterHeaterEntity):
+    """A plain electric water heater (type WH) as one Home Assistant water heater.
+
+    Its control model is the app's start-program one (see `wh.py`): a mode is one
+    `startProgram` programme, power-on starts the current programme and power-off is a
+    sparse `stopProgram`, while the setpoint goes through `settings`. The programme
+    names and the setpoint range come from the device's own schema, so the operation
+    list and the temperature bounds are exactly what this appliance publishes.
+    """
+
+    _attr_translation_key = "water_heater"
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+
+    def __init__(self, coordinator, appliance_id: str) -> None:
+        super().__init__(coordinator, appliance_id)
+        self._attr_unique_id = f"{appliance_id}_water_heater"
+
+    def _modes(self) -> dict[str, str]:
+        return wh_mode_categories(self._appliance) or {}
+
+    def _range(self) -> tuple[float, float, float]:
+        return wh_temperature_range(self._appliance)
+
+    @property
+    def supported_features(self) -> WaterHeaterEntityFeature:
+        features = WaterHeaterEntityFeature.TARGET_TEMPERATURE
+        if self._modes():
+            features |= (
+                WaterHeaterEntityFeature.OPERATION_MODE
+                | WaterHeaterEntityFeature.ON_OFF
+            )
+        return features
+
+    @property
+    def min_temp(self) -> float:
+        return self._range()[0]
+
+    @property
+    def max_temp(self) -> float:
+        return self._range()[1]
+
+    @property
+    def target_temperature_step(self) -> float:
+        return self._range()[2]
+
+    @property
+    def current_temperature(self) -> float | None:
+        return _number(self._get_attr("temp"))
+
+    @property
+    def target_temperature(self) -> float | None:
+        """`tempSel` on the schema's whole-degree grid (as the appliance publishes it)."""
+        target = _number(self._get_attr("tempSel"))
+        return None if target is None else float(round(target))
+
+    @property
+    def operation_list(self) -> list[str]:
+        return [*self._modes(), STATE_OFF]
+
+    @property
+    def current_operation(self) -> str | None:
+        power = wh_code(self._get_attr("onOffStatus"))
+        if power == "0":
+            return STATE_OFF
+        if power != "1":
+            return None  # missing or not a power state: unknown, not off
+        return wh_operation_for(self._appliance, self._get_attr("machMode"))
+
+    def _current_or_first(self) -> str | None:
+        modes = self._modes()
+        if not modes:
+            return None
+        return wh_operation_for(self._appliance, self._get_attr("machMode")) or next(
+            iter(modes)
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        operation = self._current_or_first()
+        if operation is None:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="program_not_supported",
+                translation_placeholders={"program": "on"},
+            )
+        await self._send(wh_power_on_patch(operation, self._modes()[operation]))
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self._send(wh_power_off_patch())
+
+    async def async_set_operation_mode(self, operation_mode: str) -> None:
+        if operation_mode == STATE_OFF:
+            await self._send(wh_power_off_patch())
+            return
+        modes = self._modes()
+        if operation_mode not in modes:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="program_not_supported",
+                translation_placeholders={"program": operation_mode},
+            )
+        await self._send(wh_mode_patch(operation_mode, modes[operation_mode]))
+
+    async def async_set_temperature(self, **kwargs: Any) -> None:
+        value = kwargs.get(ATTR_TEMPERATURE)
+        allowed = self._range()
+        if (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+            and self._fahrenheit()
+            and _whole_fahrenheit(value)
+        ):
+            # Home Assistant converts a Fahrenheit setpoint to Celsius before it gets
+            # here, and a whole °F falls between two whole °C (105 °F is 40.56 °C): the
+            # nearest whole degree is the one meant. Only a WHOLE °F is rounded.
+            value = round(value)
+        if not wh_validate_setpoint(value, allowed):
+            low, high, step = allowed
+            # The message is "Value {value} is not allowed (allowed: {allowed})."
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_setpoint",
+                translation_placeholders={
+                    "value": str(value),
+                    "allowed": f"{low:g}-{high:g}, step {step:g}",
+                },
+            )
+        await self._send(wh_temperature_patch(int(value)))
 
     def _fahrenheit(self) -> bool:
         return self.hass.config.units.temperature_unit == UnitOfTemperature.FAHRENHEIT

@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "active": true,
+    "available": true,
+    "machMode": 0,
+    "onOffStatus": 1,
+    "programName": "No Program",
+    "stopProgram.onOffStatus": 0,
+    "startProgram.onOffStatus": 1,
+    "startProgram.program": "normal",
+    "startProgram.machMode": 0,
+    "startProgram.remoteActionable": 1,
+    "startProgram.remoteVisible": 1,
+    "temp": 28,
+    "tempSel": 41,
+    "settings.tempSel": 41,
+    "settings.category": "setParameters"
+  }
+}

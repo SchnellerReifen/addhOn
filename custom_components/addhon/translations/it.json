@@ -1289,6 +1289,16 @@
           "electric": "Elettrica",
           "off": "Spento"
         }
+      },
+      "water_heater": {
+        "name": "Scaldacqua",
+        "state": {
+          "normal": "Normale",
+          "eco": "Eco",
+          "max": "Massima",
+          "bps": "BPS",
+          "off": "Spento"
+        }
       }
     },
     "date": {
