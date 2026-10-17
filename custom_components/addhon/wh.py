@@ -6,18 +6,25 @@ A WH has no `onOffStatus` of its own inside `settings` the way the heat-pump wat
 heater does. Its schema exposes four `startProgram` programmes -- `normal`, `eco`,
 `max` and `bps` on the ES100V-FE3W(EU) this was built from -- each pinning its own
 fixed `machMode` (0/1/2/3), plus a `stopProgram` carrying a fixed `onOffStatus:"0"`.
-So a mode change and a power-on are both a sparse `startProgram {machMode}` on the
-chosen programme, power-off is a sparse `stopProgram`, and only the setpoint goes
-through `settings` (wire `setParameters`, as on the heat-pump). Every builder reads
-its values from the schema, never from a parameter's live value: a start or a
-history recovery can write into a category in memory.
+Its three writes are the app's three shapes, none of them interchangeable:
+* a MODE change is a sparse `startProgram {machMode}` on the chosen programme (see
+  `mode_patch` below) -- the body the app's own `commandHistory` carries;
+* a POWER-ON, and a mode chosen while the unit is off, is a full programme START
+  (`program_options.async_send_program`): `startProgram` with `programName` plus the
+  category's own body. A sparse `{machMode}` is delivered but NOT turned into a start,
+  so it cannot power the unit on;
+* power-off is a sparse `stopProgram {onOffStatus:"0"}`, and the setpoint goes through
+  `settings` (wire `setParameters`, as on the heat-pump).
+Every builder reads its values from the schema, never from a parameter's live value: a
+start or a history recovery can write into a category in memory.
 
 Provenance: one live WH dump (ES100V-FE3W(EU), series fe3, 100 L). Its accepted
 `commandHistory` carries `startProgram {machMode}` with the programme's own
 `remoteActionable`/`remoteVisible` ancillaries and no `programName`, which is what
-`mode_patch` reproduces. No dump yet shows an app-sent `stopProgram` or a setpoint
-write, so those two bodies follow the same sparse shape and are checked on delivery
-by the `WH` send profile.
+`mode_patch` reproduces. The programme-start shape is the one the repo already uses for
+the fridge modes (`switch.py`, `async_send_program`); no WH dump shows an app-sent
+`stopProgram` or setpoint write, so those two sparse bodies are checked on delivery by
+the `WH` send profile.
 """
 from __future__ import annotations
 
@@ -143,11 +150,6 @@ def mode_patch(operation: str, mach_mode: str, *, action: str = "set_mode") -> C
         prepare=_select,
         program_name="",
     )
-
-
-def power_on_patch(operation: str, mach_mode: str) -> CommandPatch:
-    """Power on by starting `operation`'s programme (its `onOffStatus` is fixed "1")."""
-    return mode_patch(operation, mach_mode, action="power_on")
 
 
 def power_off_patch() -> CommandPatch:

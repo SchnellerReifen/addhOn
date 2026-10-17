@@ -47,6 +47,7 @@ from custom_components.addhon.const import CONF_ENABLE_EXPERIMENTAL, DOMAIN  # n
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "wh_es100v" / "attributes.json"
 SENT: list = []
+PROGRAMS: list = []
 
 
 def _range(value, low, high, step=1):
@@ -100,6 +101,7 @@ class _Entry:
 
 async def _setup(experimental: bool, appliance=None, **overrides) -> dict:
     SENT.clear()
+    PROGRAMS.clear()
     attributes = dict(json.loads(FIXTURE.read_text(encoding="utf-8"))["attributes"])
     attributes.update(overrides)
     data = {"wh-1": {"type": "WH", "name": "Boiler", "attributes": attributes,
@@ -127,12 +129,17 @@ async def _record(hass, client, appliance, patch) -> None:
     SENT.append(patch)
 
 
+async def _record_program(hass, client, appliance, program) -> None:
+    PROGRAMS.append(program)
+
+
 _PATCHERS: list = []
 
 
 def setUpModule() -> None:
     # Every write is recorded instead of sent; the refresh after it is a no-op.
     _PATCHERS.append(mock.patch.object(platform, "async_dispatch_patch", _record))
+    _PATCHERS.append(mock.patch.object(platform, "async_send_program", _record_program))
     _PATCHERS.append(mock.patch.object(platform, "_register_eco_schedule_service"))
     _PATCHERS.append(
         mock.patch(
@@ -217,14 +224,19 @@ class WaterHeaterTest(unittest.IsolatedAsyncioTestCase):
     async def test_turn_on_starts_the_current_programme(self) -> None:
         entity = (await _build(experimental=True, onOffStatus=0, machMode=2))[0]
         await entity.async_turn_on()
-        self.assertEqual((SENT[0].command_name, dict(SENT[0].values)),
-                         ("startProgram", {"machMode": "2"}))
-        self.assertEqual(SENT[0].program_name, "")
+        self.assertEqual(PROGRAMS, ["max"])
+        self.assertEqual(SENT, [])
 
     async def test_turn_on_without_a_known_mode_starts_the_first_programme(self) -> None:
         entity = (await _build(experimental=True, onOffStatus=0, machMode=9))[0]
         await entity.async_turn_on()
-        self.assertEqual(dict(SENT[0].values), {"machMode": "0"})
+        self.assertEqual(PROGRAMS, ["normal"])
+
+    async def test_a_mode_chosen_while_off_starts_the_programme(self) -> None:
+        entity = (await _build(experimental=True, onOffStatus=0))[0]
+        await entity.async_set_operation_mode("eco")
+        self.assertEqual(PROGRAMS, ["eco"])
+        self.assertEqual(SENT, [])
 
     async def test_temperature(self) -> None:
         entity = (await _build(experimental=True))[0]

@@ -76,11 +76,11 @@ from .wh import (
     operation_for as wh_operation_for,
     operations as wh_operations,
     power_off_patch as wh_power_off_patch,
-    power_on_patch as wh_power_on_patch,
     temperature_patch as wh_temperature_patch,
     temperature_range as wh_temperature_range,
     validate_setpoint as wh_validate_setpoint,
 )
+from .program_options import async_send_program
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -600,7 +600,7 @@ class HonWaterHeater(HonBaseEntity, WaterHeaterEntity):
                 translation_key="program_not_supported",
                 translation_placeholders={"program": "on"},
             )
-        await self._send(wh_power_on_patch(operation, self._modes()[operation]))
+        await self._start_program(operation)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self._send(wh_power_off_patch())
@@ -616,6 +616,11 @@ class HonWaterHeater(HonBaseEntity, WaterHeaterEntity):
                 translation_key="program_not_supported",
                 translation_placeholders={"program": operation_mode},
             )
+        if wh_code(self._get_attr("onOffStatus")) == "0":
+            # Off: a mode is a programme START, not the sparse machMode tweak a running
+            # unit takes -- that body is delivered but never turned into a start.
+            await self._start_program(operation_mode)
+            return
         await self._send(wh_mode_patch(operation_mode, modes[operation_mode]))
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
@@ -647,6 +652,11 @@ class HonWaterHeater(HonBaseEntity, WaterHeaterEntity):
 
     def _fahrenheit(self) -> bool:
         return self.hass.config.units.temperature_unit == UnitOfTemperature.FAHRENHEIT
+
+    async def _start_program(self, operation: str) -> None:
+        """Start `operation`'s programme the way the app does: `programName` + its body."""
+        await async_send_program(self.hass, self._hon_client, self._appliance, operation)
+        await self._async_request_command_refresh()
 
     async def _send(self, patch) -> None:
         await async_dispatch_patch(self.hass, self._hon_client, self._appliance, patch)
