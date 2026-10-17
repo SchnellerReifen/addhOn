@@ -39,6 +39,10 @@ WH_TEMP_PARAM = "tempSel"
 WH_PROGRAM_PARAM = "program"
 # Fallback setpoint range when the schema declares none: the WH dump's tempSel.
 WH_TEMP_FALLBACK = (30.0, 85.0, 1.0)
+# The resting programme both the app's mode picker and the older `hon` integration
+# leave out of the offered modes: it is the state the heater sits in when no special
+# programme runs, so it is readable but not selectable.
+WH_RESTING_PROGRAM = "normal"
 
 
 def code(raw: object) -> str | None:
@@ -90,8 +94,15 @@ def mode_categories(appliance) -> dict[str, str] | None:
 
 
 def operations(appliance) -> list[str]:
-    """The programme keys a mode can be set to, in schema order; empty without any."""
-    return list(mode_categories(appliance) or {})
+    """The programme keys a mode can be set to, in schema order; empty without any.
+
+    The resting programme (`normal`) is left out: both the app's mode picker and the
+    older `hon` integration offer only the special programmes, and it is the state the
+    heater sits in when none of them runs.
+    """
+    return [
+        key for key in (mode_categories(appliance) or {}) if key != WH_RESTING_PROGRAM
+    ]
 
 
 def operation_for(appliance, mach_mode: object) -> str | None:

@@ -74,6 +74,7 @@ from .wh import (
     mode_categories as wh_mode_categories,
     mode_patch as wh_mode_patch,
     operation_for as wh_operation_for,
+    operations as wh_operations,
     power_off_patch as wh_power_off_patch,
     power_on_patch as wh_power_on_patch,
     temperature_patch as wh_temperature_patch,
@@ -529,13 +530,16 @@ class HonWaterHeater(HonBaseEntity, WaterHeaterEntity):
     def _modes(self) -> dict[str, str]:
         return wh_mode_categories(self._appliance) or {}
 
+    def _operations(self) -> list[str]:
+        return wh_operations(self._appliance)
+
     def _range(self) -> tuple[float, float, float]:
         return wh_temperature_range(self._appliance)
 
     @property
     def supported_features(self) -> WaterHeaterEntityFeature:
         features = WaterHeaterEntityFeature.TARGET_TEMPERATURE
-        if self._modes():
+        if self._operations():
             features |= (
                 WaterHeaterEntityFeature.OPERATION_MODE
                 | WaterHeaterEntityFeature.ON_OFF
@@ -566,7 +570,7 @@ class HonWaterHeater(HonBaseEntity, WaterHeaterEntity):
 
     @property
     def operation_list(self) -> list[str]:
-        return [*self._modes(), STATE_OFF]
+        return [*self._operations(), STATE_OFF]
 
     @property
     def current_operation(self) -> str | None:
@@ -575,7 +579,10 @@ class HonWaterHeater(HonBaseEntity, WaterHeaterEntity):
             return STATE_OFF
         if power != "1":
             return None  # missing or not a power state: unknown, not off
-        return wh_operation_for(self._appliance, self._get_attr("machMode"))
+        operation = wh_operation_for(self._appliance, self._get_attr("machMode"))
+        # The resting programme is readable but not offered, so it is unknown here
+        # rather than a state outside the operation list.
+        return operation if operation in self._operations() else None
 
     def _current_or_first(self) -> str | None:
         modes = self._modes()
@@ -603,7 +610,7 @@ class HonWaterHeater(HonBaseEntity, WaterHeaterEntity):
             await self._send(wh_power_off_patch())
             return
         modes = self._modes()
-        if operation_mode not in modes:
+        if operation_mode not in self._operations():
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="program_not_supported",

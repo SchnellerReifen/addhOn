@@ -164,13 +164,21 @@ class WaterHeaterTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await _build(experimental=True, appliance=appliance), [])
 
     async def test_reads_the_reporters_appliance(self) -> None:
-        entity = (await _build(experimental=True))[0]
+        entity = (await _build(experimental=True, machMode=1))[0]
         self.assertEqual(entity.current_temperature, 28.0)
         self.assertEqual(entity.target_temperature, 41.0)
         self.assertEqual((entity.min_temp, entity.max_temp, entity.target_temperature_step),
                          (30.0, 85.0, 1.0))
-        self.assertEqual(entity.current_operation, "normal")
-        self.assertEqual(entity.operation_list, ["normal", "eco", "max", "bps", "off"])
+        self.assertEqual(entity.current_operation, "eco")
+        self.assertEqual(entity.operation_list, ["eco", "max", "bps", "off"])
+
+    async def test_the_resting_programme_is_read_but_not_offered(self) -> None:
+        # machMode 0 is the resting programme the app's picker and `hon` leave out:
+        # it is readable (a start can still use it) but not a selectable mode.
+        entity = (await _build(experimental=True, machMode=0))[0]
+        self.assertIsNone(entity.current_operation)
+        self.assertNotIn("normal", entity.operation_list)
+        self.assertIn("normal", entity._modes())
 
     async def test_mode_change_sends_machmode_only(self) -> None:
         entity = (await _build(experimental=True))[0]
@@ -181,18 +189,19 @@ class WaterHeaterTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_each_mode_sends_the_machmode_its_schema_fixes(self) -> None:
         entity = (await _build(experimental=True))[0]
-        for operation in ("normal", "eco", "max", "bps"):
+        for operation in ("eco", "max", "bps"):
             await entity.async_set_operation_mode(operation)
         self.assertEqual(
             [dict(p.values) for p in SENT],
-            [{"machMode": "0"}, {"machMode": "1"}, {"machMode": "2"}, {"machMode": "3"}],
+            [{"machMode": "1"}, {"machMode": "2"}, {"machMode": "3"}],
         )
 
     async def test_an_unknown_mode_is_refused(self) -> None:
         entity = (await _build(experimental=True))[0]
-        with self.assertRaises(HomeAssistantError) as ctx:
-            await entity.async_set_operation_mode("turbo")
-        self.assertEqual(ctx.exception.translation_key, "program_not_supported")
+        for operation in ("turbo", "normal"):
+            with self.assertRaises(HomeAssistantError) as ctx:
+                await entity.async_set_operation_mode(operation)
+            self.assertEqual(ctx.exception.translation_key, "program_not_supported", operation)
         self.assertEqual(SENT, [])
 
     async def test_off_mode_switches_off(self) -> None:
