@@ -580,8 +580,8 @@ class HonWaterHeater(HonBaseEntity, WaterHeaterEntity):
         if power != "1":
             return None  # missing or not a power state: unknown, not off
         operation = wh_operation_for(self._appliance, self._get_attr("machMode"))
-        # The resting programme is readable but not offered, so it is unknown here
-        # rather than a state outside the operation list.
+        # Guard against a programme the schema does not offer as a selectable mode:
+        # reading it as a state outside the operation list would be rejected by HA.
         return operation if operation in self._operations() else None
 
     def _current_or_first(self) -> str | None:
