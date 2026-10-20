@@ -451,7 +451,7 @@ class Tier2TableTest(unittest.TestCase):
             _sensor_keys("WH"),
             ["water_temp", "temp_inlet", "temp_outlet", "power", "water_volume",
              "heating_remaining", "program_phase", "errors", "program_name",
-             "remaining_hot_water", "total_work_time", "selected_temperature", "mode",
+             "remaining_hot_water", "selected_temperature", "mode",
              "sterilization_remaining"],
         )
 
@@ -1272,18 +1272,18 @@ class Tier2BinaryGatingTest(unittest.IsolatedAsyncioTestCase):
         added = await _build_sensors(
             "WH",
             {"errors": "00", "programName": "Eco", "remainingVolumeHotWater": "5",
-             "totalWorkTime": "3", "tempSel": "45", "machMode": "1"},
+             "tempSel": "45", "machMode": "1"},
         )
         ids = {e._attr_unique_id for e in added}
         self.assertTrue(
             {"x-1_errors", "x-1_program_name", "x-1_remaining_hot_water",
-             "x-1_total_work_time", "x-1_selected_temperature", "x-1_mode"} <= ids,
+             "x-1_selected_temperature", "x-1_mode"} <= ids,
         )
         # A WH that reports none of them creates none (capability-gated).
         bare = {e._attr_unique_id for e in await _build_sensors("WH", {"temp": "40"})}
         self.assertFalse(
             bare & {"x-1_errors", "x-1_remaining_hot_water", "x-1_mode",
-                    "x-1_selected_temperature", "x-1_total_work_time"},
+                    "x-1_selected_temperature"},
         )
 
     async def test_ac_binary_gating(self) -> None:

@@ -1207,16 +1207,8 @@ _WATER_HEATER: tuple[HonSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         gated=True,
     ),
-    HonSensorEntityDescription(
-        key="total_work_time",
-        attr_key="totalWorkTime",
-        icon="mdi:timer-outline",
-        # Minutes, as the older `hon` integration reads the same attribute on this model.
-        native_unit_of_measurement=UnitOfTime.MINUTES,
-        device_class=SensorDeviceClass.DURATION,
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        gated=True,
-    ),
+    # No `total_work_time` here: the ES100V pins `totalWorkTime` at 1 (minute) and never
+    # advances it, so it would publish a constant, misleading reading.
     # The setpoint as its own reading (the water_heater entity carries it too) and the
     # raw `machMode` code, which is what the app and `hon` publish there.
     _g_temp("selected_temperature", "tempSel"),
