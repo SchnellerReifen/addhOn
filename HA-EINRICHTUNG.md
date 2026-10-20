@@ -18,6 +18,10 @@ Modell-Referenz: `ES100V-FE3W(EU)` (Typ WH). Basis-Sensoren der Integration:
   `{{ ((now() - states.binary_sensor.es100v_fe3w_eu_heating.last_changed).total_seconds() / 3600) | round(3) if is_state('binary_sensor.es100v_fe3w_eu_heating','on') else 0 }}`
 - **Heizt seit** – `sensor.wh_heizt_seit` (`timestamp`)
   `{{ states.binary_sensor.es100v_fe3w_eu_heating.last_changed.isoformat() if is_state('binary_sensor.es100v_fe3w_eu_heating','on') else none }}`
+- **Letzte Heizdauer** – `sensor.letzte_heizdauer` (Einheit h, `duration`): spiegelt
+  `sensor.wh_heizdauer_aktuell`, solange geheizt wird, und **friert beim Abschalten**
+  den letzten Wert ein (über `this.state`)
+  `{{ states('sensor.wh_heizdauer_aktuell') if is_state('binary_sensor.es100v_fe3w_eu_heating','on') else (this.state if this.state not in ['unknown','unavailable','none'] else 0) }}`
 
 ### Integration (Riemann-Summe)
 - **Heizzeit gesamt** – `sensor.warmwasser_heizzeit_gesamt` (h): Quelle `sensor.wh_heizung_aktiv`,
@@ -60,3 +64,8 @@ Modell-Referenz: `ES100V-FE3W(EU)` (Typ WH). Basis-Sensoren der Integration:
 - Den Integrations-Entities wurde im Entity-Register ein eigener `name` gegeben
   (`config/entity_registry/update`), damit HA bei `has_entity_name` nicht
   „`<Gerätename> `" voranstellt. Entity-IDs bleiben unverändert.
+
+## Entfernte Entity
+- **Betriebszeit gesamt** (`sensor.es100v_fe3w_eu_total_work_time`) – ab v5.27.9 nicht
+  mehr vorhanden: `totalWorkTime` bleibt auf dem ES100V praktisch stehen (1–2 Minuten)
+  und ist damit keine nutzbare Betriebszeit.
