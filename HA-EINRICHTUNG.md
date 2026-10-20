@@ -13,7 +13,6 @@ Modell-Referenz: `ES100V-FE3W(EU)` (Typ WH). Basis-Sensoren der Integration:
 ### Template-Sensoren
 - **Heizt (0/1)** – `sensor.wh_heizung_aktiv`
   `{{ 1 if (states('sensor.es100v_fe3w_eu_power') | float(0)) > 0 else 0 }}`
-- **Heizt nicht (0/1)** – `sensor.wh_heizung_inaktiv` (Gegenstück zu oben)
 - **Aktuelle Heizdauer** – `sensor.wh_heizdauer_aktuell` (Einheit h, `duration`)
   `{{ ((now() - states.binary_sensor.es100v_fe3w_eu_heating.last_changed).total_seconds() / 3600) | round(3) if is_state('binary_sensor.es100v_fe3w_eu_heating','on') else 0 }}`
 - **Heizt seit** – `sensor.wh_heizt_seit` (`timestamp`)
@@ -26,8 +25,6 @@ Modell-Referenz: `ES100V-FE3W(EU)` (Typ WH). Basis-Sensoren der Integration:
 ### Integration (Riemann-Summe)
 - **Heizzeit gesamt** – `sensor.warmwasser_heizzeit_gesamt` (h): Quelle `sensor.wh_heizung_aktiv`,
   `unit_time: h`, `method: left`, `max_sub_interval: 1 min`
-- **Nicht-Heizzeit gesamt** – `sensor.warmwasser_nicht_heizzeit_gesamt` (h): Quelle
-  `sensor.wh_heizung_inaktiv`, sonst gleich
 - **Verbrauch gesamt** – `sensor.es100v_fe3w_eu_warmwasser_verbrauch_gesamt` (kWh): Quelle
   `sensor.es100v_fe3w_eu_power`, `unit_prefix: k`, `unit_time: h`, `method: left`,
   `max_sub_interval: 1 min`
