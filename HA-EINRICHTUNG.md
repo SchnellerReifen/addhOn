@@ -41,6 +41,10 @@ Modell-Referenz: `ES100V-FE3W(EU)` (Typ WH). Basis-Sensoren der Integration:
   `sensor.es100v_fe3w_eu_warmwasser_verbrauch_heute` (`daily`),
   `..._woche` (`weekly`), `..._monat` (`monthly`, kWh): Quelle jeweils
   `sensor.es100v_fe3w_eu_warmwasser_verbrauch_gesamt`
+- **Verbrauch gestern** – `sensor.verbrauch_gestern` (kWh, `energy`): spiegelt den
+  **Vorwert des Tageszählers** beim Mitternachts-Reset (`last_period`-Attribut), also
+  den Verbrauch des vorangegangenen Tages
+  `{{ state_attr('sensor.es100v_fe3w_eu_warmwasser_verbrauch_heute', 'last_period') | float(0) }}`
 
 ## Automations
 - **Warmwasser: wöchentliche Desinfektion 65 °C** (`automation.warmwasser_woechentliche_desinfektion_65_c`)
